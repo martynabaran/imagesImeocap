@@ -561,26 +561,43 @@ def get_model(model_name, num_classes):
 
 def run_experiment(df, model_name, output_dir="checkpoints", batch_size=16, n_epochs=10):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #labels = sorted(df['label'].unique())
-    #label2id = {l: i for i, l in enumerate(labels)}
-    #id2label = {v: k for k, v in label2id.items()}
-    df["label"] = df["label"].replace({9: 8})
-    print("[INFO] Class distribution after merging:")
+    print("[INFO] Checking label column type...")
+    print(df["label"].head())
+    
+    # Upewnij się, że to liczby całkowite
+    df["label"] = df["label"].astype(int)
+    
+    # Twoja lista emocji w ustalonej kolejności
+    emotions = ['neutral', 'frustrated', 'angry', 'sad', 'happy',
+                'excited', 'surprise', 'fear', 'other']
+    
+    # Sprawdź, czy numery etykiet mieszczą się w zakresie
+    if df["label"].max() >= len(emotions):
+        raise ValueError(f"[ERROR] Label index {df['label'].max()} out of range for emotions list of length {len(emotions)}")
+    
+    # Zamień liczby (0–8) na odpowiadające nazwy emocji
+    df["label"] = df["label"].apply(lambda x: emotions[x])
+    
+    print("[INFO] Example of converted labels:")
+    print(df["label"].head())
+    print("[INFO] Unique emotion labels after conversion:", df["label"].unique())
     print(df["label"].value_counts())
-
-# =========================================================
-# 3️⃣ Define emotion list (fixed label order)
-# =========================================================
-    emotions = ['neutral', 'frustrated', 'angry', 'sad', 'happy', 'excited', 'surprise', 'fear', 'other']
-
-# Create mapping dictionaries
+    
+    # =========================================================
+    # 2️⃣ Create mapping dictionaries (now text-based)
+    # =========================================================
     label2id = {emotion: idx for idx, emotion in enumerate(emotions)}
     id2label = {idx: emotion for idx, emotion in enumerate(emotions)}
     labels = list(label2id.keys())
-
-    # Split data
+    
+    # =========================================================
+    # 3️⃣ Split into train / val / test
+    # =========================================================
     train_df, test_df = train_test_split(df, test_size=0.2, stratify=df['label'], random_state=42)
     train_df, val_df = train_test_split(train_df, test_size=0.2, stratify=train_df['label'], random_state=42)
+    
+    print("[INFO] Dataset sizes:")
+    print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}"))
 
     # Set dataset mode
     if model_name.lower() in ["resnet18", "panns_cnn14"]:
