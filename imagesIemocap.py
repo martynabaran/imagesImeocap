@@ -14,10 +14,12 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
 import torchaudio
-from torchaudio import transforms as T
+
 from torch.hub import load as torch_hub_load
 #from datasets import Dataset
 from sklearn.preprocessing import label_binarize
+
+import torchvision.transforms as T  # T for image transforms
 
 from sklearn.metrics import (
     accuracy_score,
