@@ -597,7 +597,7 @@ def run_experiment(df, model_name, output_dir="checkpoints", batch_size=16, n_ep
     train_df, val_df = train_test_split(train_df, test_size=0.2, stratify=train_df['label'], random_state=42)
     
     print("[INFO] Dataset sizes:")
-    print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}"))
+    print(f"Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
 
     # Set dataset mode
     if model_name.lower() in ["resnet18", "panns_cnn14"]:
