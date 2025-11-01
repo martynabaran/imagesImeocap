@@ -16,7 +16,7 @@ from torch.utils.data import Dataset, DataLoader
 import torchaudio
 from torchaudio import transforms as T
 from torch.hub import load as torch_hub_load
-from datasets import Dataset
+#from datasets import Dataset
 from sklearn.preprocessing import label_binarize
 
 from sklearn.metrics import (
@@ -50,7 +50,7 @@ HF_CACHE = os.path.join(SCRATCH, "huggingface_cache")
 DATASET_DIR2 = os.path.join("/net/tscratch/people/plgmarbar/", "iemocap")
 # Ścieżka do folderu z danymi (rozpakowany ZIP)
 IEMOCAP_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "imeocap_data/imepocap_simplified")
-CSV_PATH = os.path.join("/net/tscratch/people/plgmarbar/iemocap/imeocap_data/imepocap_simplified/", "metadata.csv")
+CSV_PATH = os.path.join("/net/tscratch/people/plgmarbar/iemocap/imeocap_data/", "metadata.csv")
 OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "image_approach_checkpoints")
 OUTPUT_DIR_PERSISTENT=OUTPUT_DIR
 os.makedirs(OUTPUT_DIR_PERSISTENT, exist_ok=True)
@@ -88,8 +88,7 @@ def prepare_dataset_paths(df, base_dir):
 
 
     df["full_path"] = df["audio"].apply(make_new_path)
-    df = df.rename_column("full_path", "path")
-    df = df.rename_column("label_id", "label")
+    df = df.rename(columns={"full_path": "path","label_id": "label"})
     return df
 
 def set_reproducibility(seed: int = 42):

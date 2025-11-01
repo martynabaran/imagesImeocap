@@ -1,0 +1,4 @@
+# Ignore local environment, logs, and job outputs
+my_env/
+*.err
+*.out
