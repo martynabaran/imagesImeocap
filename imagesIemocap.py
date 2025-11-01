@@ -566,7 +566,7 @@ def run_experiment(df, model_name, output_dir="checkpoints", batch_size=16, n_ep
     
     # Upewnij się, że to liczby całkowite
     df["label"] = df["label"].astype(int)
-    
+    df["label"] = df["label"].replace({9: 8})
     # Twoja lista emocji w ustalonej kolejności
     emotions = ['neutral', 'frustrated', 'angry', 'sad', 'happy',
                 'excited', 'surprise', 'fear', 'other']
