@@ -364,7 +364,7 @@ def metrics_to_dataframe(metrics):
 
 print(f"[INFO] Using local dataset from: {IEMOCAP_DIR}")
 print(f"[INFO] Loading metadata from: {CSV_PATH}")
-IEMOCAP_DIR2 = "/net/tscratch/people/plgmarbar/iemocap/imeocap_data/imepocap_simplified"
+IEMOCAP_DIR2 = "/net/tscratch/people/plgmarbar/iemocap/imeocap_data/"
 # Wczytaj DataFrame
 df = pd.read_csv(CSV_PATH)
 df = prepare_dataset_paths(df, IEMOCAP_DIR2)
