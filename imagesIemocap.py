@@ -53,7 +53,7 @@ DATASET_DIR2 = os.path.join("/net/tscratch/people/plgmarbar/", "iemocap")
 # Ścieżka do folderu z danymi (rozpakowany ZIP)
 IEMOCAP_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "imeocap_data/imepocap_simplified")
 CSV_PATH = os.path.join("/net/tscratch/people/plgmarbar/iemocap/imeocap_data/", "metadata.csv")
-OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "image_approach_checkpoints_gradient_accumulation")
+OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "image_approach_checkpoints_gradient_accumulation_v2")
 OUTPUT_DIR_PERSISTENT=OUTPUT_DIR
 os.makedirs(OUTPUT_DIR_PERSISTENT, exist_ok=True)
 
@@ -512,7 +512,7 @@ class ResNetSpectrogramClassifier(nn.Module):
 #         all_y_pred.extend(preds)
 #         all_y_score.extend(probs)
 #     return total_loss / len(loader.dataset), all_y_true, all_y_pred, np.array(all_y_score)
-def train_one_epoch(model, loader, optimizer, device, accumulation_steps=4):
+def train_one_epoch_grad(model, loader, optimizer, device, accumulation_steps=4):
     model.train()
     total_loss = 0.0
     y_true, y_pred, y_score = [], [], []
@@ -541,7 +541,25 @@ def train_one_epoch(model, loader, optimizer, device, accumulation_steps=4):
     avg_loss = total_loss / len(loader)
     return avg_loss, y_true, y_pred, y_score
 
+def train_one_epoch(model, loader, optimizer, device):
+    model.train()
+    total_loss = 0
+    all_y_true, all_y_pred, all_y_score = [], [], []
+    for imgs, labels in tqdm(loader, desc="Train"):
+        imgs, labels = imgs.to(device), labels.to(device)
+        optimizer.zero_grad()
+        logits = model(imgs)
+        loss = F.cross_entropy(logits, labels)
+        loss.backward()
+        optimizer.step()
 
+        total_loss += loss.item() * imgs.size(0)
+        probs = torch.softmax(logits, dim=1).detach().cpu().numpy()
+        preds = np.argmax(probs, axis=1)
+        all_y_true.extend(labels.cpu().numpy())
+        all_y_pred.extend(preds)
+        all_y_score.extend(probs)
+    return total_loss / len(loader.dataset), all_y_true, all_y_pred, np.array(all_y_score)
 @torch.no_grad()
 def evaluate(model, loader, device):
     model.eval()
@@ -564,7 +582,7 @@ def train_and_evaluate(model, train_loader, val_loader, optimizer, device, label
     best_val = None
     for epoch in range(1, n_epochs + 1):
         print(f"\nEpoch {epoch}/{n_epochs}")
-        train_loss, y_true_train, y_pred_train, y_score_train = train_one_epoch(model, train_loader, optimizer, device, accumulation_steps=4)
+        train_loss, y_true_train, y_pred_train, y_score_train = train_one_epoch(model, train_loader, optimizer, device)
         val_loss, y_true_val, y_pred_val, y_score_val = evaluate(model, val_loader, device)
 
         val_metrics = compute_ser_metrics(y_true_val, y_pred_val, y_score_val, labels)
@@ -674,4 +692,4 @@ def run_experiment(df, model_name, output_dir="checkpoints", batch_size=16, n_ep
 
     print(json.dumps({k: metrics[k] for k in ['accuracy', 'balanced_accuracy', 'f1_macro']}, indent=2))
 
-run_experiment(df,model_name="resnet18", output_dir=OUTPUT_DIR, batch_size=4, n_epochs=40)
+run_experiment(df,model_name="resnet18", output_dir=OUTPUT_DIR, batch_size=16, n_epochs=50)
