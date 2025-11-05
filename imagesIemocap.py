@@ -53,7 +53,7 @@ DATASET_DIR2 = os.path.join("/net/tscratch/people/plgmarbar/", "iemocap")
 # Ścieżka do folderu z danymi (rozpakowany ZIP)
 IEMOCAP_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "imeocap_data/imepocap_simplified")
 CSV_PATH = os.path.join("/net/tscratch/people/plgmarbar/iemocap/imeocap_data/", "metadata.csv")
-OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "image_approach_checkpoints_gradient_accumulation_v2")
+OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "image_approach_checkpoints_gradient_accumulation_zapis_metryk")
 OUTPUT_DIR_PERSISTENT=OUTPUT_DIR
 os.makedirs(OUTPUT_DIR_PERSISTENT, exist_ok=True)
 
@@ -578,18 +578,68 @@ def evaluate(model, loader, device):
     return total_loss / len(loader.dataset), all_y_true, all_y_pred, np.array(all_y_score)
 
 
-def train_and_evaluate(model, train_loader, val_loader, optimizer, device, labels, checkpoint_dir, n_epochs=20):
+# def train_and_evaluate(model, train_loader, val_loader, optimizer, device, labels, checkpoint_dir, n_epochs=20):
+#     best_val = None
+#     for epoch in range(1, n_epochs + 1):
+#         print(f"\nEpoch {epoch}/{n_epochs}")
+#         train_loss, y_true_train, y_pred_train, y_score_train = train_one_epoch(model, train_loader, optimizer, device)
+#         val_loss, y_true_val, y_pred_val, y_score_val = evaluate(model, val_loader, device)
+
+#         val_metrics = compute_ser_metrics(y_true_val, y_pred_val, y_score_val, labels)
+#         print(json.dumps({k: val_metrics[k] for k in ['accuracy', 'balanced_accuracy', 'f1_macro']}, indent=2))
+#         save_checkpoint_if_best(model, optimizer, epoch, val_metrics, checkpoint_dir)
+#     return model
+def train_and_evaluate(model, train_loader, val_loader, optimizer, device, labels, checkpoint_dir, n_epochs=20, log_path=None):
+    """
+    Trenuje model, logując przy każdej epoce train/eval loss i accuracy do JSON-a.
+    """
     best_val = None
+    history = []  # lista do logów
+
+    if log_path is None:
+        log_path = os.path.join(checkpoint_dir, "training_log.json")
+
     for epoch in range(1, n_epochs + 1):
         print(f"\nEpoch {epoch}/{n_epochs}")
+
+        # === TRAIN ===
         train_loss, y_true_train, y_pred_train, y_score_train = train_one_epoch(model, train_loader, optimizer, device)
+        train_metrics = compute_ser_metrics(y_true_train, y_pred_train, y_score_train, labels)
+        train_acc = train_metrics["accuracy"]
+        train_bal_acc = train_metrics["balanced_accuracy"]
+
+        # === EVAL ===
         val_loss, y_true_val, y_pred_val, y_score_val = evaluate(model, val_loader, device)
-
         val_metrics = compute_ser_metrics(y_true_val, y_pred_val, y_score_val, labels)
-        print(json.dumps({k: val_metrics[k] for k in ['accuracy', 'balanced_accuracy', 'f1_macro']}, indent=2))
-        save_checkpoint_if_best(model, optimizer, epoch, val_metrics, checkpoint_dir)
-    return model
+        val_acc = val_metrics["accuracy"]
+        val_bal_acc = val_metrics["balanced_accuracy"]
 
+        print(f"[Epoch {epoch}] "
+              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, "
+              f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+
+        # Zapis do logu
+        entry = {
+            "epoch": epoch,
+            "train_loss": float(train_loss),
+            "train_accuracy": float(train_acc),
+            "train_balanced_accuracy": float(train_bal_acc),
+            "eval_loss": float(val_loss),
+            "eval_accuracy": float(val_acc),
+            "eval_balanced_accuracy": float(val_bal_acc),
+            "eval_f1_macro": float(val_metrics["f1_macro"]),
+        }
+        history.append(entry)
+
+        # Co epokę zapisuj do JSON
+        with open(log_path, "w") as f:
+            json.dump(history, f, indent=2)
+
+        # Checkpoint jeśli najlepszy wynik
+        # save_checkpoint_if_best(model, optimizer, epoch, val_metrics, checkpoint_dir)
+
+    print(f"[INFO] Full training log saved to: {log_path}")
+    return model
 # -----------------------
 # 4. Main Experiment Setup
 # -----------------------
