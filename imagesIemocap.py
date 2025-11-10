@@ -51,9 +51,9 @@ SCRATCH = os.environ.get("MEMFS", os.environ.get("SCRATCH", "/tmp"))
 HF_CACHE = os.path.join(SCRATCH, "huggingface_cache")
 DATASET_DIR2 = os.path.join("/net/tscratch/people/plgmarbar/", "iemocap")
 # Ścieżka do folderu z danymi (rozpakowany ZIP)
-IEMOCAP_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "imeocap_data/imepocap_simplified")
-CSV_PATH = os.path.join("/net/tscratch/people/plgmarbar/iemocap/imeocap_data/", "metadata.csv")
-OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap", "image_approach_checkpoints_gradient_accumulation_zapis_metryk")
+IEMOCAP_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap_4", "iemocap_data_4_emotions")
+CSV_PATH = os.path.join(IEMOCAP_DIR, "metadata.csv")
+OUTPUT_DIR = os.path.join("/net/tscratch/people/plgmarbar/iemocap_4", "image_approach_checkpoints_4_emotions")
 OUTPUT_DIR_PERSISTENT=OUTPUT_DIR
 os.makedirs(OUTPUT_DIR_PERSISTENT, exist_ok=True)
 
@@ -79,18 +79,19 @@ def prepare_dataset_paths(df, base_dir):
 
     df = df.copy()
 
-    def make_new_path(x):
-        # zamień backslash na slash, żeby łatwiej dzielić
-        x = x.replace("\\", "/")
-        parts = x.split("/")  # podziel ścieżkę po slashach
-        base_name = parts[-2] # ostatni folder
-        file_name = parts[-1] # nazwa pliku
-        new_path = os.path.join(base_dir, base_name, file_name)
-        return new_path.replace("\\", "/")
+    # def make_new_path(x):
+    #     # zamień backslash na slash, żeby łatwiej dzielić
+    #     x = x.replace("\\", "/")
+    #     parts = x.split("/")  # podziel ścieżkę po slashach
+    #     base_name = parts[-2] # ostatni folder
+    #     file_name = parts[-1] # nazwa pliku
+    #     new_path = os.path.join(base_dir, base_name, file_name)
+    #     return new_path.replace("\\", "/")
 
 
-    df["full_path"] = df["audio"].apply(make_new_path)
-    df = df.rename(columns={"full_path": "path","label_id": "label"})
+    # df["full_path"] = df["audio"].apply(make_new_path)
+    df["full_path"] = df["filename"].apply(lambda x: os.path.join(base_dir, x).replace("\\", "/"))
+    df = df.rename(columns={"full_path": "path","emotion": "label"})
     return df
 
 def set_reproducibility(seed: int = 42):
@@ -367,7 +368,7 @@ print(f"[INFO] Loading metadata from: {CSV_PATH}")
 IEMOCAP_DIR2 = "/net/tscratch/people/plgmarbar/iemocap/imeocap_data/"
 # Wczytaj DataFrame
 df = pd.read_csv(CSV_PATH)
-df = prepare_dataset_paths(df, IEMOCAP_DIR2)
+df = prepare_dataset_paths(df, IEMOCAP_DIR)
 print(f"[INFO] Loaded {len(df)} samples")
 
 
@@ -662,19 +663,15 @@ def run_experiment(df, model_name, output_dir="checkpoints", batch_size=16, n_ep
     print("[INFO] Checking label column type...")
     print(df["label"].head())
     
-    # Upewnij się, że to liczby całkowite
-    df["label"] = df["label"].astype(int)
-    df["label"] = df["label"].replace({9: 8})
     # Twoja lista emocji w ustalonej kolejności
-    emotions = ['neutral', 'frustrated', 'angry', 'sad', 'happy',
-                'excited', 'surprise', 'fear', 'other']
+    emotions = ["neutral", "happy", "sad", "angry"]
     
     # Sprawdź, czy numery etykiet mieszczą się w zakresie
     if df["label"].max() >= len(emotions):
         raise ValueError(f"[ERROR] Label index {df['label'].max()} out of range for emotions list of length {len(emotions)}")
     
     # Zamień liczby (0–8) na odpowiadające nazwy emocji
-    df["label"] = df["label"].apply(lambda x: emotions[x])
+    # df["label"] = df["label"].apply(lambda x: emotions[x])
     
     print("[INFO] Example of converted labels:")
     print(df["label"].head())
@@ -742,4 +739,4 @@ def run_experiment(df, model_name, output_dir="checkpoints", batch_size=16, n_ep
 
     print(json.dumps({k: metrics[k] for k in ['accuracy', 'balanced_accuracy', 'f1_macro']}, indent=2))
 
-run_experiment(df,model_name="resnet18", output_dir=OUTPUT_DIR, batch_size=16, n_epochs=50)
+run_experiment(df,model_name="resnet18", output_dir=OUTPUT_DIR, batch_size=16, n_epochs=25)
